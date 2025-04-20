@@ -4,6 +4,10 @@ import django.shortcuts as render
 from user_agents import parse
 import requests
 import logging
+import os
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def get_client_ip(request):
     x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
@@ -15,11 +19,19 @@ def get_client_ip(request):
 
 def get_location(ip):
     try:
-        response = requests.get(f"https://ipinfo.io/{ip}/json", timeout=5)
+        api_token = os.environ.get('IPINFO_TOKEN', '')
+        url = f"https://ipinfo.io/{ip}/json"
+        if api_token:
+            url += f"?token={api_token}"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
         data = response.json()
+        logger.debug(f"ipinfo.io response: {data}")
         return data.get('country', ''), data.get('city', '')
-    except:
+    except Exception as e:
+        logger.error(f"Erreur ipinfo.io pour IP {ip}: {str(e)}")
         return '', ''
+
 
 def track_ip(request):
     ip = get_client_ip(request)
